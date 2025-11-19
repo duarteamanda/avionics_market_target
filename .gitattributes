@@ -1,0 +1,2 @@
+data/raw/faa/MASTER.txt filter=lfs diff=lfs merge=lfs -text
+data/raw/faa/DEREG.txt filter=lfs diff=lfs merge=lfs -text
