@@ -1,2 +1,0 @@
-*.txt filter=lfs diff=lfs merge=lfs -text
-FAA_DEREG.txt[[:space:]]FAA_MASTER.txt filter=lfs diff=lfs merge=lfs -text
