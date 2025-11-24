@@ -1,6 +1,5 @@
 import pandas as pd
 import re
-import os
 
 input_path = "data/raw/faa/Repair Station Contacts with Ratings (Download).csv"
 output_path = "data/processed/faa/FAA_Repair_Station.csv"
