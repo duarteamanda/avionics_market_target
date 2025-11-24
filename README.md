@@ -25,8 +25,13 @@ These files contain AEA-related data and were obtained from the AEA Pilot's Guid
 - **AEA_RepairList.pdf** – Source: [AEA Pilot's Guide 2025-2026](https://mydigitalpublication.com/publication/frame.php?i=849325&p=&pn=&ver=html5)
 
 Approved maintenance organization, including:
+
 FAA Part 145 repair stations (U.S.)
+
 TCCA CAR 573 AMO (Canada)
+
 CASA CAR 30 (Australia)
+
 EASA Part-M (Europe)
-And “other maintenance organizations approved by their contracting state.”
+
+≈And “other maintenance organizations approved by their contracting state.”
