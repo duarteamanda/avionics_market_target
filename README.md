@@ -14,7 +14,7 @@ These files contain FAA-related data and were obtained from the FAA Facility Das
 
 - **Contacts (Download).csv / XLSX** – Source: [FAA Facility Dashboard](https://www.faa.gov/av-info/facility-dashboard)
 - **Repair Station Contacts with Ratings (Download).csv / XLSX** – Source: [FAA Facility Dashboard](https://www.faa.gov/av-info/facility-dashboard)
-- Releasable Aircraft Database Download package - Source: [Aircraft Database] (https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download)
+- **Releasable Aircraft Database Download package** - Source: [Aircraft Database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download)
 
 ## AEA
 Aircraft Electronics Association is a global trade organization representing nearly 1,300 companies that manufacture, install, and repair aircraft electronics
