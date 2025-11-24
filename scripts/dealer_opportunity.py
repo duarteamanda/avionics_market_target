@@ -5,9 +5,9 @@ import re
 # Paths
 aea_path = "data/processed/aea/AEA_RepairList2025-2026.csv"
 faa_path = "data/processed/faa/FAA_Repair_Station.csv"
-output_path = "data/processed/faa/dealer_opportunities.csv"
+output_path = "data/processed/dealer_opportunities.csv"
 
-os.makedirs("data/processed/faa", exist_ok=True)
+os.makedirs("data/processed", exist_ok=True)
 
 # Read CSVs
 aea = pd.read_csv(aea_path, dtype=str)
