@@ -26,12 +26,5 @@ These files contain AEA-related data and were obtained from the AEA Pilot's Guid
 
 Approved maintenance organization, including:
 
-FAA Part 145 repair stations (U.S.)
-
-TCCA CAR 573 AMO (Canada)
-
-CASA CAR 30 (Australia)
-
-EASA Part-M (Europe)
-
-≈And “other maintenance organizations approved by their contracting state.”
+FAA Part 145 repair stations (U.S.), TCCA CAR 573 AMO (Canada), CASA CAR 30 (Australia), EASA Part-M (Europe), and other maintenance organisations approved 
+by their contracting state.
