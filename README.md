@@ -1,6 +1,13 @@
-# Avionics Market Target
+# Avionics Market Pricing and Dealer Research
 
-## FAA - Federal Aviation Administration, is a U.S. federal agency that regulates and oversees all aspects of civil aviation in the United States and surrounding 
+This repository contains research data and analysis for the avionics market, focusing on two main areas:
+
+1. **Market Pricing Analysis** – Defining market prices for certified avionics products and supporting growth companies.
+2. **Dealer Network Research** – Mapping and analyzing dealer partnerships for FAA Part 145 certified products.
+
+
+## FAA
+Federal Aviation Administration, is a U.S. federal agency that regulates and oversees all aspects of civil aviation in the United States and surrounding 
 international watersonederal Aviation Administration
 
 These files contain FAA-related data and were obtained from the FAA Facility Dashboard PART 145 REPAIR STATION
@@ -8,7 +15,9 @@ These files contain FAA-related data and were obtained from the FAA Facility Das
 - **Contacts (Download).csv / XLSX** – Source: [FAA Facility Dashboard](https://www.faa.gov/av-info/facility-dashboard)
 - **Repair Station Contacts with Ratings (Download).csv / XLSX** – Source: [FAA Facility Dashboard](https://www.faa.gov/av-info/facility-dashboard)
 
-## AEA - Aircraft Electronics Association is a global trade organization representing nearly 1,300 companies that manufacture, install, and repair aircraft electronics (avionics) and instruments. 
+## AEA
+Aircraft Electronics Association is a global trade organization representing nearly 1,300 companies that manufacture, install, and repair aircraft electronics
+(avionics) and instruments. 
 
 These files contain AEA-related data and were obtained from the AEA Pilot's Guide 2025-2026 Edition: 
 
