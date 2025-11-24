@@ -22,3 +22,4 @@ df["Agency Name"] = df["Agency Name"].apply(clean_company)
 df.to_csv(output_path, index=False)
 print(f"Cleaned file saved to: {output_path}")
 
+print(len(df))
