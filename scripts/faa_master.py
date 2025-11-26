@@ -9,6 +9,7 @@ raw_path = "data/raw/faa/MASTER.txt"
 processed_dir = "data/processed"
 output_file = f"{processed_dir}/faa_master.csv"
 shapes_country = "data/shapes/countries"
+shapes_states = "data/shapes/states_provinces"
 
 os.makedirs(processed_dir, exist_ok=True)
 master = pd.read_csv(raw_path, dtype=str)
@@ -46,8 +47,6 @@ print(f"Records after dropping Weight-shift-control and Powered Parachute from T
 us_df = df[df['COUNTRY'] == 'US'].copy()
 missing_states = us_df['STATE'].isna().sum()
 print(f'Missing States: {missing_states}')
-
-us_counts = df[df['COUNTRY']=='US'].groupby('STATE').size().reset_index(name='aircraft_count')
 
 # Aircraft counts by country
 country_counts = df.groupby('COUNTRY').size().reset_index(name='aircraft_count')
@@ -116,3 +115,67 @@ fig.text(0.5, 0.03,
          fontsize=10)
 ax.axis('off')
 plt.show()
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
+#Get Aircraft count per US states
+# Count US aircraft by state
+us_counts = df[df['COUNTRY'] == 'US'].groupby('STATE').size().reset_index(name='aircraft_count')
+print("Missing US state entries:", df[(df['COUNTRY']=='US') & (df['STATE'].isna())].shape[0])
+
+unique_states = df['STATE'].dropna().unique()
+print(sorted(unique_states))
+
+state_counts = df['STATE'].value_counts()
+print(state_counts)
+
+# Find missing or empty states
+missing_states = df[df['STATE'].isna()]
+print(f"Missing STATE records: {len(missing_states)}")
+
+# Find codes that aren’t 2-letter US abbreviations
+invalid_states = df[~df['STATE'].isin(states['STUSPS'])]
+print(invalid_states['STATE'].unique())
+
+# Load Natural Earth global states/provinces
+# states_shp = [f for f in os.listdir(shapes_states) if f.endswith(".shp")][0]
+# states_gdf = gpd.read_file(os.path.join(shapes_states, states_shp))
+#
+# # ---- FILTER TO UNITED STATES ONLY ----
+# if "iso_a2" in states_gdf.columns:
+#     states_gdf = states_gdf[states_gdf["iso_a2"] == "US"]
+# elif "iso_a3" in states_gdf.columns:
+#     states_gdf = states_gdf[states_gdf["iso_a3"] == "USA"]
+# elif "admin" in states_gdf.columns:
+#     states_gdf = states_gdf[states_gdf["admin"] == "United States of America"]
+# else:
+#     print(states_gdf.columns)
+#     raise ValueError("Cannot find usable country column in states shapefile.")
+#
+# # Identify correct state abbreviation column
+# if "postal" in states_gdf.columns:
+#     state_col = "postal"
+# elif "stusps" in states_gdf.columns:
+#     state_col = "stusps"
+# else:
+#     print(states_gdf.columns)
+#     raise ValueError("Cannot find US state abbreviation field in shapefile.")
+#
+# # Merge FAA state counts
+# states_gdf = states_gdf.merge(us_counts, how="left", left_on=state_col, right_on="STATE")
+# states_gdf['aircraft_count'] = states_gdf['aircraft_count'].fillna(0)
+#
+# # Plot US state choropleth
+# fig, ax = plt.subplots(1, 1, figsize=(15, 8))
+# states_gdf.plot(column='aircraft_count', cmap='Blues', edgecolor='black', legend=True, ax=ax)
+#
+# ax.set_title('FAA - Aircraft Registered by U.S. State', fontsize=16)
+# ax.axis('off')
+# plt.show()
+#
+# states = gpd.read_file(
+#     "https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_5m.zip"
+# )
+#
+# # Drop territories (PR, GU, VI etc)
+# states = states[~states['STUSPS'].isin(['PR', 'GU', 'VI', 'AS', 'MP'])]
+#
+# states.plot()
