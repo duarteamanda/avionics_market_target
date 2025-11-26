@@ -1,15 +1,19 @@
+from email.contentmanager import get_and_fixup_unknown_message_content
+
 import pandas as pd
 import os
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pycountry
 import matplotlib.patches as mpatches
+faa_csv = "data/processed/faa_master.csv"
 
 raw_path = "data/raw/faa/MASTER.txt"
 processed_dir = "data/processed"
 output_file = f"{processed_dir}/faa_master.csv"
 shapes_country = "data/shapes/countries"
-shapes_states = "data/shapes/states_provinces"
+shapes_states = "data/shapes/states_provinces/cb_2018_us_state_5m.shp"
+states = gpd.read_file(shapes_states)
 
 os.makedirs(processed_dir, exist_ok=True)
 master = pd.read_csv(raw_path, dtype=str)
@@ -110,7 +114,7 @@ ax.legend(handles=legend_handles, title='Aircraft Count', loc='lower right', bbo
 ax.set_title('FAA - World Registered Aircraft', fontsize=16)
 plt.subplots_adjust(bottom=0.01)
 fig.text(0.5, 0.03,
-         'Counts include only aircraft registered with the U.S. FAA. Source Last updated: Tuesday, May 13, 2025.',
+         'Counts include only aircraft registered with the U.S. FAA. Source updated: Tuesday, May 13, 2025.',
          ha='center',
          fontsize=10)
 ax.axis('off')
@@ -118,64 +122,73 @@ plt.show()
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 #Get Aircraft count per US states
 # Count US aircraft by state
-us_counts = df[df['COUNTRY'] == 'US'].groupby('STATE').size().reset_index(name='aircraft_count')
-print("Missing US state entries:", df[(df['COUNTRY']=='US') & (df['STATE'].isna())].shape[0])
+df_us = pd.read_csv(faa_csv, dtype=str)
+df_us = df_us[df_us['COUNTRY'] == 'US']
 
-unique_states = df['STATE'].dropna().unique()
-print(sorted(unique_states))
+# Padronizar a coluna STATE
+df_us['STATE'] = df_us['STATE'].str.strip().str.upper()
 
-state_counts = df['STATE'].value_counts()
-print(state_counts)
+# Contagem por estado
+state_counts = df_us['STATE'].value_counts().reset_index()
+state_counts.columns = ['STUSPS', 'count']
 
-# Find missing or empty states
-missing_states = df[df['STATE'].isna()]
-print(f"Missing STATE records: {len(missing_states)}")
+# Merge com shapefile (apenas estados existentes)
+df_main = states.merge(state_counts, on='STUSPS', how='left')
+df_main['count'] = df_main['count'].fillna(0)
 
-# Find codes that aren’t 2-letter US abbreviations
-invalid_states = df[~df['STATE'].isin(states['STUSPS'])]
-print(invalid_states['STATE'].unique())
+# Separar grupos
+continental_states = [
+    'AL','AZ','AR','CA','CO','CT','DE','FL','GA','ID','IL','IN',
+    'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV',
+    'NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN',
+    'TX','UT','VT','VA','WA','WV','WI','WY','DC'
+]
+alaska_hawaii = ['AK','HI']
+territories = ['PR','VI','GU','MP','AS']
 
-# Load Natural Earth global states/provinces
-# states_shp = [f for f in os.listdir(shapes_states) if f.endswith(".shp")][0]
-# states_gdf = gpd.read_file(os.path.join(shapes_states, states_shp))
-#
-# # ---- FILTER TO UNITED STATES ONLY ----
-# if "iso_a2" in states_gdf.columns:
-#     states_gdf = states_gdf[states_gdf["iso_a2"] == "US"]
-# elif "iso_a3" in states_gdf.columns:
-#     states_gdf = states_gdf[states_gdf["iso_a3"] == "USA"]
-# elif "admin" in states_gdf.columns:
-#     states_gdf = states_gdf[states_gdf["admin"] == "United States of America"]
-# else:
-#     print(states_gdf.columns)
-#     raise ValueError("Cannot find usable country column in states shapefile.")
-#
-# # Identify correct state abbreviation column
-# if "postal" in states_gdf.columns:
-#     state_col = "postal"
-# elif "stusps" in states_gdf.columns:
-#     state_col = "stusps"
-# else:
-#     print(states_gdf.columns)
-#     raise ValueError("Cannot find US state abbreviation field in shapefile.")
-#
-# # Merge FAA state counts
-# states_gdf = states_gdf.merge(us_counts, how="left", left_on=state_col, right_on="STATE")
-# states_gdf['aircraft_count'] = states_gdf['aircraft_count'].fillna(0)
-#
-# # Plot US state choropleth
-# fig, ax = plt.subplots(1, 1, figsize=(15, 8))
-# states_gdf.plot(column='aircraft_count', cmap='Blues', edgecolor='black', legend=True, ax=ax)
-#
-# ax.set_title('FAA - Aircraft Registered by U.S. State', fontsize=16)
-# ax.axis('off')
-# plt.show()
-#
-# states = gpd.read_file(
-#     "https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_5m.zip"
-# )
-#
-# # Drop territories (PR, GU, VI etc)
-# states = states[~states['STUSPS'].isin(['PR', 'GU', 'VI', 'AS', 'MP'])]
-#
-# states.plot()
+# Totais corretos direto do CSV
+ak_count = int(df_us[df_us['STATE'] == 'AK'].shape[0])
+hi_count = int(df_us[df_us['STATE'] == 'HI'].shape[0])
+pr_count = int(df_us[df_us['STATE'] == 'PR'].shape[0])
+vi_count = int(df_us[df_us['STATE'] == 'VI'].shape[0])
+gu_count = int(df_us[df_us['STATE'] == 'GU'].shape[0])
+mp_count = int(df_us[df_us['STATE'] == 'MP'].shape[0])
+as_count = int(df_us[df_us['STATE'] == 'AS'].shape[0])
+
+# --- Plot continental US ---
+df_plot = df_main[df_main['STUSPS'].isin(continental_states)]
+
+fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+df_plot.plot(
+    column='count',
+    cmap='OrRd',
+    linewidth=0.8,
+    ax=ax,
+    edgecolor='0.8',
+    legend=True
+)
+
+# Adicionar abreviações no mapa
+for idx, row in df_plot.iterrows():
+    plt.annotate(
+        text=row['STUSPS'],
+        xy=(row['geometry'].centroid.x, row['geometry'].centroid.y),
+        horizontalalignment='center',
+        verticalalignment='center',
+        fontsize=8,
+        color='black'
+    )
+
+# Nota inferior com todos os totais corretos
+territory_note = ", ".join([f"{t}: {v}" for t, v in territory_counts.items()])
+fig.text(
+    0.5, 0.03,
+    f'Alaska (AK): {ak_count}, Hawaii (HI): {hi_count}, Territories ({territory_note}) not included in map. '
+    f'Counts include only aircraft registered with the U.S. FAA. Source updated: Tuesday, May 13, 2025.',
+    ha='center',
+    fontsize=10
+)
+
+ax.set_title("FAA Aircraft Population per Continental US States", fontsize=16)
+ax.axis('off')
+plt.show()
