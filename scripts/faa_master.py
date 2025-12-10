@@ -1,15 +1,11 @@
 import os
 import pandas as pd
 import pycountry
-import re
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
-from shapely.affinity import translate
-
-
 
 # Load and read as CSV the FAA Master file
 processed_dir = "data/processed"
