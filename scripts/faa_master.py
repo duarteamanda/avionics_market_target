@@ -8,7 +8,7 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 
 # Load and read as CSV the FAA Master file
-processed_dir = "data/processed"
+processed_dir = "data/processed/faa"
 os.makedirs(processed_dir, exist_ok=True)
 
 raw_path = "data/raw/faa/MASTER.txt"
