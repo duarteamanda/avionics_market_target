@@ -1,12 +1,15 @@
 import os
 import pandas as pd
+import pycountry
 import re
 import geopandas as gpd
 import matplotlib.pyplot as plt
-import pycountry
+import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
-import matplotlib.cm as cm
+from shapely.affinity import translate
+
+
 
 # Load and read as CSV the FAA Master file
 processed_dir = "data/processed"
@@ -18,51 +21,58 @@ faa_master_csv = f"{processed_dir}/master.csv"
 shapes_country = "data/shapes/countries"
 shapes_states = "data/shapes/states_provinces/cb_2018_us_state_5m.shp"
 
-df = pd.read_csv(raw_path, dtype=str)
+df_original = pd.read_csv(raw_path, dtype=str)
+df = df_original.copy()
 print(f"Total records in raw file: {len(df)}")
 
-# Cleaning and standardising - Columns that affect aircraft location
-address_cols = ['COUNTRY', 'STATE', 'CITY', 'STREET', 'STREET2', 'ZIP CODE']
+# Clean and standardise
+# Remove Type Aircraft 7 (weight-shift-control) and 8 (powered parachute)
+df = df[~df['TYPE AIRCRAFT'].isin(['7', '8'])]
+print(f"Total records after dropping 7 & 8 as Type Aircraft: {len(df)}")
+
+# Remove data with no address information
+address_cols = ['COUNTRY', 'STATE', 'CITY', 'STREET', 'STREET2', 'ZIP CODE','REGION']
 
 for col in address_cols:
-    df[col] = df[col].str.strip()  # remove espaços
+    df[col] = df[col].str.strip()
     df[col] = df[col].replace([r'^\s*$', r'(?i)^<unset>$', r'(?i)^NULL$'], pd.NA, regex=True)
 
 df = df.dropna(subset=address_cols, how='all')
-print(f"Empty COUNTRY total: {(df['COUNTRY'].isna() | (df['COUNTRY'] == '')).sum()}")
-print(f"Total records after dropping rows with all addresses missing: {len(df)}")
+print(f"Total records after dropping rows with no address: {len(df)}")
 
-unique_nnumbers = df['N-NUMBER'].nunique()
-print(f"Unique N-NUMBERs: {unique_nnumbers}")
+unique_numbers = df['N-NUMBER'].nunique()
+print(f"Unique N-NUMBERs: {unique_numbers}")
 
-empty_state = df[(df['STATE'].isna()) | (df['STATE'] == '')]
-print(f"Total records with empty STATE: {len(empty_state)}")
-# Among them, filter which also have empty ZIP CODE
-empty_state_no_zip = empty_state[empty_state['ZIP CODE'].isna() | (empty_state['ZIP CODE'] == '')]
-print(f"Of those, records with empty ZIP CODE too: {len(empty_state_no_zip)}")
+# Check and clean empty COUNTRY address information
+empty_country = df[(df['COUNTRY'].isna()) | (df['COUNTRY'] == '')]
+print(f"Total records with empty COUNTRY: {len(empty_country)}")
 
-empty_state_csv = f"{processed_dir}/faa_empty_state.csv"
-empty_state.to_csv(empty_state_csv, index=False, na_rep='NA')
-print(f"Empty STATE records exported: {empty_state_csv}")
+for col in address_cols:
+    non_empty_count = empty_country[col].notna().sum()
+    unique_count = empty_country[col].nunique(dropna=True)
+    if non_empty_count > 0:
+        print(f"Column '{col}': {non_empty_count} non-empty, {unique_count} unique values")
 
-# Normalize COUNTRY column for reliable filtering
-df['COUNTRY'] = df['COUNTRY'].str.upper().str.strip()
+df = df[~df['COUNTRY'].isna()].copy()
+print(f"Total records after dropping rows with empty COUNTRY: {len(df)}")
 
-# Convert known variants to US
-df['COUNTRY'] = df['COUNTRY'].replace({
-    'UNITED STATES': 'US',
-    'U.S.': 'US',
-    'USA': 'US'
-})
+# Count territories and AK + HI
+ak_count = int(df[df['STATE'] == 'AK'].shape[0])
+hi_count = int(df[df['STATE'] == 'HI'].shape[0])
+print(f"Total records for Alaska: {ak_count}")
+print(f"Total records Hawaii: {hi_count}")
 
-# Count NaN values in STATE for US country
-missing_us_state = df[(df['COUNTRY'] == 'US') & (df['STATE'].isna())]
-print("Total US records missing STATE:", len(missing_us_state))
+territories = ['PR', 'VI', 'GU', 'MP', 'AS']
+territory_counts = {t: int(df[df['STATE'] == t].shape[0]) for t in territories}
+print("Territories counts:", territory_counts)
 
+# Save the cleaned CSV
 df.to_csv(faa_master_csv, index=False, na_rep='NA')
 print(f"Cleaned CSV saved: {faa_master_csv}")
 
-## World Map Aircraft Population
+df = pd.read_csv(faa_master_csv, dtype=str)
+
+## World Map Aircraft Population ##
 country_counts = df.groupby('COUNTRY').size().reset_index(name='aircraft_count')
 
 # Fix special ISO2 codes
@@ -90,7 +100,7 @@ world = world.merge(country_counts, how='left', left_on=shapefile_iso_col, right
 world['aircraft_count'] = world['aircraft_count'].fillna(0)
 
 # Continuous colormap
-cmap = cm.get_cmap('Reds')
+cmap = plt.colormaps['Oranges']
 norm = mcolors.Normalize(vmin=0, vmax=1)
 norm = mcolors.Normalize(vmin=world['aircraft_count'].min(), vmax=world['aircraft_count'].max())
 
@@ -108,94 +118,81 @@ cbar = fig.colorbar(sm, ax=ax, fraction=0.02, pad=0.05)
 cbar.set_label('Number of registered aircraft', fontsize=12)
 
 ax.set_title('FAA - World Registered Aircraft Population', fontsize=18)
-fig.text(0.5, 0.08,
+fig.text(0.5, 0.09,
          'Counts include only aircraft registered with the U.S. FAA. Source updated: Tuesday, May 13, 2025.',
-         ha='center', fontsize=12)
+         ha='center', fontsize=10)
 ax.axis('off')
 plt.show()
 
-## US States + Territories
-# # -------------------------
-# states = gpd.read_file(shapes_states)
-#
-# # Filtra US + territórios
-# df_us = df[df['COUNTRY'] == 'US']
-# df_us = df[df['COUNTRY'].isin(['US','PR','VI','GU','MP','AS'])]
-#
-# # Contagem por estado
-# state_counts = df_us['STATE'].value_counts().reset_index()
-# state_counts.columns = ['STUSPS','count']
-#
-# # Merge com shapefile
-# df_main = states.merge(state_counts, on='STUSPS', how='left').fillna(0)
-#
-# # Contagem AK/HI e territórios
-# territories = ['PR','VI','GU','MP','AS']
-# territory_counts = {t: int(df_us[df_us['STATE'] == t].shape[0]) for t in territories}
-# ak_count = int(df_us[df_us['STATE'] == 'AK'].shape[0])
-# hi_count = int(df_us[df_us['STATE'] == 'HI'].shape[0])
-# territory_note = ", ".join([f"{t}: {v}" for t, v in territory_counts.items()])
-#
-# # -------------------------
-# # Filtra apenas continental US
-# # -------------------------
-# continental_states = [
-#     'AL','AZ','AR','CA','CO','CT','DE','FL','GA','ID','IL','IN',
-#     'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV',
-#     'NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN',
-#     'TX','UT','VT','VA','WA','WV','WI','WY','DC'
-# ]
-# df_plot = df_main[df_main['STUSPS'].isin(continental_states)].copy()
-#
-# # -------------------------
-# # Define bins e cores
-# # -------------------------
-# max_count = int(df_plot['count'].max())
-# # Bins fixos (0 será branco, os demais tons de azul)
-# bins = [0, 500, 1000, 2000, 5000, 10000, 20000, max_count+1]
-# labels = range(1, len(bins))
-#
-# # Categoriza
-# df_plot['category'] = pd.cut(df_plot['count'], bins=bins, labels=labels, include_lowest=True)
-#
-# # Mapa de azul, 0 branco
-# cmap = plt.cm.Blues
-# df_plot['color'] = df_plot['category'].apply(
-#     lambda x: '#ffffff' if pd.isna(x) else mcolors.to_hex(cmap((int(x)-1)/(len(labels)-1)))
-# )
-#
-# # Legenda apenas valores >= 1
-# legend_handles = []
-# for i in range(1, len(bins)):
-#     color = mcolors.to_hex(cmap((i-1)/(len(labels)-1)))
-#     label = f"{int(bins[i-1])+1:,} - {int(bins[i])-1:,}"
-#     legend_handles.append(mpatches.Patch(color=color, label=label))
-#
-# # -------------------------
-# # Plot
-# # -------------------------
-# fig, ax = plt.subplots(1, 1, figsize=(15,10))
-# df_plot.plot(color=df_plot['color'], linewidth=0.8, ax=ax, edgecolor='0.8', legend=False)
-#
-# # Annotate states
-# for idx, row in df_plot.iterrows():
-#     plt.annotate(
-#         text=row['STUSPS'],
-#         xy=(row['geometry'].centroid.x, row['geometry'].centroid.y),
-#         ha='center', va='center', fontsize=8
-#     )
-#
-# # Nota AK/HI e territórios
-# fig.text(
-#     0.5, 0.03,
-#     f'Alaska (AK): {ak_count}, Hawaii (HI): {hi_count}. Territories ({territory_note}) not included in map. '
-#     'Counts include only aircraft registered with the U.S. FAA.',
-#     ha='center',
-#     fontsize=10
-# )
-#
-# # Legenda
-# ax.legend(handles=legend_handles, title='Aircraft Count', loc='lower right', bbox_to_anchor=(1.05, 0.5))
-#
-# ax.axis('off')
-# plt.show()
+## US States + Territories ##
+df = pd.read_csv(faa_master_csv, dtype=str)
+states = gpd.read_file(shapes_states)
+
+# Filter and Count US + territories
+df_us = df[df['COUNTRY'].isin(['US'])]
+state_counts = df_us['STATE'].value_counts().reset_index()
+state_counts.columns = ['STUSPS', 'count']
+
+# Shapefile merging
+df_main = states.merge(state_counts, on='STUSPS', how='left').fillna(0)
+
+continental_states = [
+    'AL', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'ID', 'IL', 'IN',
+    'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV',
+    'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN',
+    'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+]
+df_plot = df_main[df_main['STUSPS'].isin(continental_states)].copy()
+
+# Define bins and colours
+max_count = int(df_plot['count'].max())
+bins = [0, 500, 1000, 2000, 5000, 10000, 20000, max_count + 1]
+labels = range(1, len(bins))
+
+df_plot['category'] = pd.cut(df_plot['count'], bins=bins, labels=labels, include_lowest=True)
+
+cmap = plt.cm.Oranges
+df_plot['color'] = df_plot['category'].apply(
+    lambda x: '#ffffff' if pd.isna(x) else mcolors.to_hex(cmap((int(x) - 1) / (len(labels) - 1)))
+)
+
+legend_handles = []
+for i in range(1, len(bins)):
+    color = mcolors.to_hex(cmap((i - 1) / (len(labels) - 1)))
+    label = f"{int(bins[i - 1]) + 1:,} - {int(bins[i]) - 1:,}"
+    legend_handles.append(mpatches.Patch(color=color, label=label))
+
+# Plot US Aircraft Population
+fig, ax = plt.subplots(1, 1, figsize=(17, 12))
+ax.set_title('US Registered Aircraft Population', fontsize=18)
+df_plot.plot(color=df_plot['color'], linewidth=0.8, ax=ax, edgecolor='0.8', legend=False)
+
+# Annotate states
+for idx, row in df_plot.iterrows():
+    plt.annotate(
+        text=row['STUSPS'],
+        xy=(row['geometry'].centroid.x, row['geometry'].centroid.y),
+        ha='center', va='center', fontsize=8
+    )
+
+# Add note AK/HI
+fig.text(
+    0.5, 0.1,
+    f'Alaska (AK): {ak_count}, Hawaii (HI): {hi_count}. Territories not included in map. '
+    'Counts include only aircraft registered with the U.S. FAA.',
+    ha='center',
+    fontsize=10
+)
+
+# Legend
+ax.legend(
+    handles=legend_handles,
+    title='Aircraft Count',
+    loc='lower right',
+    frameon=True
+)
+
+ax.axis('off')
+plt.show()
+
+
