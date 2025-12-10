@@ -1,3 +1,4 @@
 MASTER.txt filter=lfs diff=lfs merge=lfs -text
 data/processed/faa_master.csv filter=lfs diff=lfs merge=lfs -text
 data/processed/*.csv filter=lfs diff=lfs merge=lfs -text
+data/processed/faa/master.csv filter=lfs diff=lfs merge=lfs -text
