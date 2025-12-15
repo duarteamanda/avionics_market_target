@@ -30,5 +30,5 @@ FAA Part 145 repair stations (U.S.), TCCA CAR 573 AMO (Canada), CASA CAR 30 (Aus
 by their contracting state.
 
 Extra Source:
-Natural Earth / Admin 0 - Countries [Cultural Themes]] (hhttps://www.naturalearthdata.com/downloads/110m-cultural-vector)
+Natural Earth / Admin 0 - Countries [Cultural Themes]] (https://www.naturalearthdata.com/downloads/110m-cultural-vector)
 
