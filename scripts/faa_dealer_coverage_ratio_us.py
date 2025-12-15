@@ -10,7 +10,7 @@ repair_store_df = pd.read_csv(dealer_data)
 aircraft_df = aircraft_df[aircraft_df['COUNTRY'] == 'US']
 repair_store_df = repair_store_df[repair_store_df['country'] == 'United States']
 
-aircraft_df.to_csv('data/processed/faa_aircraft_us.csv', index=False)
+aircraft_df.to_csv('data/processed/faa_aircraft_population_us.csv', index=False)
 repair_store_df.to_csv('data/processed/aea_repair_store_us.csv', index=False)
 
 # Us states
