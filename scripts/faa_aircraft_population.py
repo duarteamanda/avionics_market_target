@@ -166,7 +166,6 @@ for idx, row in df_plot.iterrows():
         ha='center', va='center', fontsize=8
     )
 
-# Add note AK/HI
 fig.text(
     0.5, 0.1,
     f'Alaska: {ak_count} and Hawaii: {hi_count}. Territories not included in map. '
@@ -175,7 +174,6 @@ fig.text(
     fontsize=10
 )
 
-# Legend
 ax.legend(
     handles=legend_handles,
     title='Aircraft Count',
