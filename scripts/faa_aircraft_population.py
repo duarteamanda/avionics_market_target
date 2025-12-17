@@ -158,7 +158,6 @@ fig, ax = plt.subplots(1, 1, figsize=(17, 12))
 ax.set_title('US Registered Aircraft Population', fontsize=24)
 df_plot.plot(color=df_plot['color'], linewidth=0.8, ax=ax, edgecolor='0.8', legend=False)
 
-# Annotate states
 for idx, row in df_plot.iterrows():
     plt.annotate(
         text=row['STUSPS'],
@@ -166,20 +165,12 @@ for idx, row in df_plot.iterrows():
         ha='center', va='center', fontsize=8
     )
 
-fig.text(
-    0.5, 0.1,
+fig.text(0.5, 0.1,
     f'Alaska: {ak_count} and Hawaii: {hi_count}. Territories not included in map. '
     'Counts include only aircraft registered with the U.S. FAA.',
     ha='center',
     fontsize=10
 )
-
-ax.legend(
-    handles=legend_handles,
-    title='Aircraft Count',
-    loc='lower right',
-    frameon=True
-)
-
+ax.legend(handles=legend_handles, title='Aircraft Count', loc='lower right', frameon=True)
 ax.axis('off')
 plt.show()
