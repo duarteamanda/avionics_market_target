@@ -113,16 +113,17 @@ plt.show()
 df = pd.read_csv(master_csv, dtype=str)
 states = gpd.read_file(shapes_states)
 
-# Count territories and AK + HI
-ak_count = int(df[df['STATE'] == 'AK'].shape[0])
-hi_count = int(df[df['STATE'] == 'HI'].shape[0])
-print(f"Total records for Alaska: {ak_count}")
-print(f"Total records Hawaii: {hi_count}")
-
 # Filter and Count US
 df_us = df[df['COUNTRY'].isin(['US'])]
 state_counts = df_us['STATE'].value_counts().reset_index()
 state_counts.columns = ['STUSPS', 'count']
+print(f"Total US records: {len(df_us)}")
+
+# Count Alaska and Hawaii
+ak_count = int(df[df['STATE'] == 'AK'].shape[0])
+hi_count = int(df[df['STATE'] == 'HI'].shape[0])
+print(f"Total records for Alaska: {ak_count}")
+print(f"Total records Hawaii: {hi_count}")
 
 # Shapefile merging
 df_main = states.merge(state_counts, on='STUSPS', how='left').fillna(0)
@@ -166,8 +167,8 @@ for idx, row in df_plot.iterrows():
     )
 
 fig.text(0.5, 0.1,
-    f'Alaska: {ak_count} and Hawaii: {hi_count}. Territories not included in map. '
-    'Counts include only aircraft registered with the U.S. FAA.',
+    f'Alaska: {ak_count} and Hawaii: {hi_count}. Territories not '
+    f'included in map.\nCounts include only aircraft registered with the U.S. FAA.',
     ha='center',
     fontsize=10
 )
