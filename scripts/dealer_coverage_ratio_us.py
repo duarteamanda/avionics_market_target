@@ -99,20 +99,20 @@ norm = plt.Normalize(vmin=df_plot['dealers_per_aircraft'].min(), vmax=df_plot['d
 df_plot['color'] = df_plot['dealers_per_aircraft'].apply(lambda x: mcolors.to_hex(cmap(norm(x))))
 
 # Plot
-fig, ax = plt.subplots(1, 1, figsize=(17,12))
+fig, ax = plt.subplots(1, 1, figsize=(20,12))
 df_plot.plot(color=df_plot['color'], linewidth=0.8, ax=ax, edgecolor='0.8')
 
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm._A = []
-cbar = fig.colorbar(sm, ax=ax)
-cbar.set_label('Dealers per Aircraft')
+cbar = fig.colorbar(sm, ax=ax, fraction=0.02, pad=0.02)
+cbar.set_label('Dealers per Aircraft', fontsize=12)
 
 for idx, row in df_plot.iterrows():
     plt.annotate(text=row['STUSPS'], xy=(row['geometry'].centroid.x, row['geometry'].centroid.y),
                  ha='center', va='center', fontsize=8)
 
 ax.axis('off')
-ax.set_title('US States: Dealer Coverage Ratio', fontsize=24)
+ax.set_title('U.S. States: Dealer Coverage Ratio', fontsize=24)
 
 fig.text(
     0.5, 0.05,
