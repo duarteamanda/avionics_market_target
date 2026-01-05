@@ -7,52 +7,66 @@ import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 
-# Load and read as CSV the FAA Master file
-processed_dir = "data/processed/faa"
-os.makedirs(processed_dir, exist_ok=True)
+# Create processed directories
+processed_dir_faa = "data/processed/faa"
+processed_dir_aea = "data/processed/aea"
+os.makedirs(processed_dir_faa, exist_ok=True)
+os.makedirs(processed_dir_aea, exist_ok=True)
 
+# Paths
 faa_raw_path = "data/raw/faa/MASTER.txt"
-master_csv = f"{processed_dir}/master.csv"
+faa_clean_csv = f"{processed_dir_faa}/master.csv"
 
+aea_raw_path = "data/processed/aea/AEA_RepairList2025-2026.csv"
+
+# Shapefiles
 shapes_country = "data/shapes/countries"
 shapes_states = "data/shapes/states_provinces/cb_2018_us_state_5m.shp"
 
-df_original = pd.read_csv(faa_raw_path, dtype=str)
-df = df_original.copy()
-print(f"Total records in raw file: {len(df)}")
+# Load FAA master raw data
+df_faa = pd.read_csv(faa_raw_path, dtype=str)
+print(f"FAA Total Aircraft Population: {len(df_faa)}")
 
-## Clean and standardise
+df_aea = pd.read_csv(aea_raw_path, dtype=str)
+print(f"AEA Total Repair Station: {len(df_aea)}")
+
+## Clean, standardise, and save FAA aircraft population data
+df_faa_clean = df_faa.copy()
+
 # Remove Type Aircraft 7 (weight-shift-control) and 8 (powered parachute)
-df = df[~df['TYPE AIRCRAFT'].isin(['7', '8'])]
-print(f"Total records after dropping 7 & 8 as Type Aircraft: {len(df)}")
+df_faa_clean = df_faa_clean[~df_faa_clean['TYPE AIRCRAFT'].isin(['7', '8'])]
+print(f"Total Aircraft Population after dropping 7 & 8 as Type Aircraft: {len(df_faa_clean)}")
 
-# Remove data with no address information
+# Clean address columns
 address_cols = ['COUNTRY', 'STATE', 'CITY', 'STREET', 'STREET2', 'ZIP CODE']
-
 for col in address_cols:
-    df[col] = df[col].str.strip()
-    df[col] = df[col].replace([r'^\s*$', r'(?i)^<unset>$', r'(?i)^NULL$'], pd.NA, regex=True)
+    df_faa_clean[col] = df_faa_clean[col].str.strip()
+    df_faa_clean[col] = df_faa_clean[col].replace([r'^\s*$', r'(?i)^<unset>$', r'(?i)^NULL$'], pd.NA, regex=True)
 
-df = df.dropna(subset=address_cols, how='all')
-print(f"Total records after dropping rows with no address: {len(df)}")
+# Drop rows with no address info
+df_faa_clean = df_faa_clean.dropna(subset=address_cols, how='all')
+print(f"Total Aircraft Population after dropping rows with no address: {len(df_faa_clean)}")
 
-missing_country = df[df['COUNTRY'].isna()]
-print(f"Total records with empty COUNTRY: {len(missing_country)}")
+# Check missing COUNTRY
+missing_country = df_faa_clean[df_faa_clean['COUNTRY'].isna()]
+print(f"Total Aircraft Population with empty COUNTRY: {len(missing_country)}")
 
-# Check any aircraft duplicated
-unique_numbers = df['N-NUMBER'].nunique()
-print(f"Unique N-NUMBERs: {unique_numbers}")
+# Check duplicate N-NUMBERs
+unique_numbers = df_faa_clean['N-NUMBER'].nunique()
+print(f"Aircraft Unique N-NUMBERs: {unique_numbers}")
 
-# Save the cleaned CSV
-df.to_csv(master_csv, index=False, na_rep='NA')
-print(f"Cleaned CSV saved: {master_csv}")
+# Save cleaned CSV
+df_faa_clean.to_csv(faa_clean_csv, index=False, na_rep='NA')
+print(f"Cleaned Aircraft Population CSV saved: {faa_clean_csv}")
 
-df = pd.read_csv(master_csv, dtype=str)
+# Reload cleaned dataset
+df_faa_clean = pd.read_csv(faa_clean_csv, dtype=str)
+print(f"FAA Total Aircraft Population: {len(df_faa_clean)}")
 
 ## World Map Aircraft Population ##
 # Check invalid codes for COUNTRY
 valid_iso2 = [c.alpha_2 for c in pycountry.countries]
-invalid_codes_before = df[~df['COUNTRY'].isin(valid_iso2)]['COUNTRY'].unique()
+invalid_codes_before = df_faa_clean[~df_faa_clean['COUNTRY'].isin(valid_iso2)]['COUNTRY'].unique()
 print(f"Invalid COUNTRY codes before mapping: {invalid_codes_before}")
 
 # Treat invalid codes
@@ -65,11 +79,12 @@ def iso2_to_iso3(code):
         return pycountry.countries.get(alpha_2=code).alpha_3
     return None
 
-country_counts = df.groupby('COUNTRY').size().reset_index(name='aircraft_count')
+country_counts = df_faa_clean.groupby('COUNTRY').size().reset_index(name='aircraft_count')
 country_counts['iso3'] = country_counts['COUNTRY'].apply(iso2_to_iso3)
+country_counts['aircraft_count'].sum()
 
 invalid_codes_after = country_counts[country_counts['iso3'].isna()]['COUNTRY'].unique()
-print(f"Invalid COUNTRY codes after manual mapping: {invalid_codes_after}")
+print(f"Invalid COUNTRY codes after mapping: {invalid_codes_after}")
 
 country_counts = country_counts.dropna(subset=['iso3'])
 
@@ -82,13 +97,13 @@ world = gpd.read_file(shapefile_path)
 
 shapefile_iso_col = 'ISO_A3' if 'ISO_A3' in world.columns else world.columns[0]
 
+# Merge and fill missing
 world = world.merge(country_counts, how='left', left_on=shapefile_iso_col, right_on='iso3')
 world['aircraft_count'] = world['aircraft_count'].fillna(0)
 
-# Continuous colormap
+# Colormap
 cmap = plt.colormaps['Oranges']
 norm = mcolors.Normalize(vmin=world['aircraft_count'].min(), vmax=world['aircraft_count'].max())
-
 world['color'] = world['aircraft_count'].apply(
     lambda x: '#ffffff' if x == 0 else mcolors.to_hex(cmap(norm(x)))
 )
@@ -101,13 +116,67 @@ sm = cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
 cbar = fig.colorbar(sm, ax=ax, fraction=0.02, pad=0.05)
 cbar.set_label('Number of registered aircraft', fontsize=12)
-
 ax.set_title('FAA - World Registered Aircraft Population', ha='center', fontsize=24)
 fig.text(0.5, 0.09,
          'Counts include only aircraft registered with the U.S. FAA. Source updated: Tuesday, May 13, 2025.',
          ha='center', fontsize=10)
 ax.axis('off')
 plt.show()
+
+total_mapped_aircraft = country_counts['aircraft_count'].sum()
+print(f"Total aircraft represented on map: {total_mapped_aircraft}")
+print(f"Total aircraft in original dataset: {len(df_faa_clean)}")
+
+## World AEA Repair Store Map##
+df_aea['country'] = df_aea['country'].str.strip()
+
+# Map country names to ISO3
+def country_name_to_iso3(name):
+    try:
+        return pycountry.countries.lookup(name).alpha_3
+    except LookupError:
+        return None
+
+manual_country_map = {'Dubai': 'United Arab Emirates'}
+df_aea['country'] = df_aea['country'].replace(manual_country_map)
+df_aea['iso3'] = df_aea['country'].apply(country_name_to_iso3)
+
+# Count repair stations per country
+repair_counts = df_aea.dropna(subset=['iso3']).groupby('iso3').size().reset_index(name='repair_station_count')
+
+# Merge with world shapefile
+world_aea = world.merge(repair_counts, how='left', left_on=shapefile_iso_col, right_on='iso3')
+world_aea['repair_station_count'] = world_aea['repair_station_count'].fillna(0)
+
+# Colormap
+cmap = plt.colormaps['Reds']
+norm = mcolors.Normalize(vmin=world_aea['repair_station_count'].min(), vmax=world_aea['repair_station_count'].max())
+world_aea['color'] = world_aea['repair_station_count'].apply(
+    lambda x: '#ffffff' if x == 0 else mcolors.to_hex(cmap(norm(x)))
+)
+
+# Plot AEA Repair Stations map
+fig, ax = plt.subplots(1, 1, figsize=(15, 8))
+world_aea.plot(color=world_aea['color'], ax=ax, edgecolor='black')
+
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+cbar = fig.colorbar(sm, ax=ax, fraction=0.02, pad=0.05)
+cbar.set_label('Number of repair stations', fontsize=12)
+ax.set_title('AEA Repair Station Distribution Worldwide', ha='center', fontsize=24)
+fig.text(0.5, 0.09,
+         'Counts include only approved maintenance organisations with AEA. Source updated: 2025-2026.',
+         ha='center', fontsize=10)
+ax.axis('off')
+plt.show()
+
+# Sum of all mapped countries
+total_mapped_stations = repair_counts['repair_station_count'].sum()
+print(f"Total repair stations represented on map: {total_mapped_stations}")
+print(f"Total repair stations in original dataset: {len(df_aea)}")
+
+missing_aea = df_aea[~df_aea['country'].apply(lambda x: country_name_to_iso3(x) is not None)]
+# print(missing_aea)
 
 ## US States + Alaska and Hawaii ##
 df = pd.read_csv(master_csv, dtype=str)
@@ -173,5 +242,75 @@ fig.text(0.5, 0.1,
     fontsize=10
 )
 ax.legend(handles=legend_handles, title='Aircraft Count', loc='lower right', frameon=True)
+ax.axis('off')
+# plt.show()
+
+##PLOT FOR AEA Repair Store List
+# Make a copy to be safe
+df_aea_clean = df_aea.copy()
+
+# Strip country names
+df_aea_clean['Country'] = df_aea_clean['Country'].str.strip()
+
+# Optional: drop rows with empty country
+df_aea_clean = df_aea_clean[df_aea_clean['Country'].notna() & (df_aea_clean['Country'] != '')]
+
+# Convert country names to ISO3 codes
+def country_name_to_iso3(name):
+    try:
+        return pycountry.countries.lookup(name).alpha_3
+    except LookupError:
+        return None
+
+df_aea_clean['iso3'] = df_aea_clean['Country'].apply(country_name_to_iso3)
+
+# Check unmatched names
+unmatched = df_aea_clean[df_aea_clean['iso3'].isna()]['Country'].unique()
+print(f"Unmatched country names: {unmatched}")
+
+# Count number of repair stations per country
+country_counts_aea = (
+    df_aea_clean
+    .dropna(subset=['iso3'])
+    .groupby('iso3')
+    .size()
+    .reset_index(name='repair_station_count')
+)
+
+# Load world shapefile
+shp_files = [f for f in os.listdir(shapes_country) if f.endswith(".shp")]
+if not shp_files:
+    raise ValueError(f"No shapefiles found in {shapes_country}")
+shapefile_path = os.path.join(shapes_country, shp_files[0])
+world = gpd.read_file(shapefile_path)
+
+shapefile_iso_col = 'ISO_A3' if 'ISO_A3' in world.columns else world.columns[0]
+
+# Merge repair station counts into shapefile
+world_aea = world.merge(country_counts_aea, how='left', left_on=shapefile_iso_col, right_on='iso3')
+world_aea['repair_station_count'] = world_aea['repair_station_count'].fillna(0)
+
+# Colormap
+cmap = plt.colormaps['Blues']  # optional, different from FAA map
+norm = mcolors.Normalize(vmin=world_aea['repair_station_count'].min(),
+                         vmax=world_aea['repair_station_count'].max())
+
+world_aea['color'] = world_aea['repair_station_count'].apply(
+    lambda x: '#ffffff' if x == 0 else mcolors.to_hex(cmap(norm(x)))
+)
+
+# Plot AEA World Repair Stations Map
+fig, ax = plt.subplots(1, 1, figsize=(15, 8))
+world_aea.plot(color=world_aea['color'], ax=ax, edgecolor='black')
+
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+cbar = fig.colorbar(sm, ax=ax, fraction=0.02, pad=0.05)
+cbar.set_label('Number of AEA Repair Stations', fontsize=12)
+
+ax.set_title('AEA - World Repair Station Distribution', ha='center', fontsize=24)
+fig.text(0.5, 0.09,
+         'Counts include only repair stations from the AEA 2025-2026 list.',
+         ha='center', fontsize=10)
 ax.axis('off')
 plt.show()
